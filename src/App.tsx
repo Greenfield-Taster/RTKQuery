@@ -7,7 +7,14 @@ import {
   useEditPostMutation,
   PostSchema,
 } from "./redux/slice";
-import { Container, Typography, Paper, Box, Button } from "@mui/material";
+import {
+  Container,
+  Typography,
+  Paper,
+  Box,
+  Button,
+  TextField,
+} from "@mui/material";
 import { useInView } from "react-intersection-observer";
 
 function App() {
@@ -17,6 +24,9 @@ function App() {
     start,
     limit: 5,
   });
+
+  const [newPostTitle, setNewPostTitle] = useState("");
+  const [newPostBody, setNewPostBody] = useState("");
 
   const [addPost] = useAddPostMutation();
   const [editPost] = useEditPostMutation();
@@ -40,11 +50,15 @@ function App() {
 
   const handleAddPost = async () => {
     try {
-      await addPost({
+      const newPost = await addPost({
         userId: 1,
-        title: "New Post",
-        body: "This is a new post",
+        title: newPostTitle,
+        body: newPostBody,
       }).unwrap();
+
+      setAllPosts((prevPosts) => [newPost, ...prevPosts]);
+      setNewPostTitle("");
+      setNewPostBody("");
     } catch (err) {
       console.error("Failed to add post", err);
     }
@@ -75,9 +89,33 @@ function App() {
       {isLoading && <p>Loading...</p>}
       {error && <p>Error: {error}</p>}
 
-      <Button onClick={handleAddPost} variant="contained" color="primary">
-        Add Post
-      </Button>
+      <div>
+        <Container>
+          <TextField
+            name="title"
+            label="Title"
+            value={newPostTitle}
+            onChange={(e) => setNewPostTitle(e.target.value)}
+            variant="outlined"
+            fullWidth
+            margin="normal"
+          />
+          <TextField
+            name="body"
+            label="Body"
+            multiline
+            rows={4}
+            value={newPostBody}
+            onChange={(e) => setNewPostBody(e.target.value)}
+            variant="outlined"
+            fullWidth
+            margin="normal"
+          />
+          <Button onClick={handleAddPost} variant="contained" color="primary">
+            Add Post
+          </Button>
+        </Container>
+      </div>
 
       {allPosts.map((post, index) => (
         <Container sx={{ border: 1, mt: 2 }} key={post.id}>
