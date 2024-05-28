@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import "./App.css";
 import {
   useGetPostsQuery,
@@ -20,13 +20,13 @@ import { useInView } from "react-intersection-observer";
 function App() {
   const [start, setStart] = useState(0);
   const [allPosts, setAllPosts] = useState<PostSchema[]>([]);
+  const [newPostTitle, setNewPostTitle] = useState("");
+  const [newPostBody, setNewPostBody] = useState("");
+  const [editingPost, setEditingPost] = useState<PostSchema | null>(null);
   const { data, error, isLoading, isFetching } = useGetPostsQuery({
     start,
     limit: 5,
   });
-
-  const [newPostTitle, setNewPostTitle] = useState("");
-  const [newPostBody, setNewPostBody] = useState("");
 
   const [addPost] = useAddPostMutation();
   const [editPost] = useEditPostMutation();
@@ -50,26 +50,50 @@ function App() {
 
   const handleAddPost = async () => {
     try {
-      const newPost = await addPost({
-        userId: 1,
-        title: newPostTitle,
-        body: newPostBody,
-      }).unwrap();
-
+      const postToAdd = editingPost
+        ? editingPost
+        : { userId: 1, title: newPostTitle, body: newPostBody };
+      const newPost = await addPost(postToAdd).unwrap();
       setAllPosts((prevPosts) => [newPost, ...prevPosts]);
       setNewPostTitle("");
       setNewPostBody("");
+      setEditingPost(null);
     } catch (err) {
       console.error("Failed to add post", err);
     }
   };
 
-  const handleEditPost = async (id: number) => {
+  const handleEditPost = (id: number) => {
+    const postToEdit = allPosts.find((post) => post.id === id);
+    if (postToEdit) {
+      setEditingPost(postToEdit);
+      setNewPostTitle(postToEdit.title);
+      setNewPostBody(postToEdit.body);
+    }
+  };
+
+  const handleSaveChanges = async () => {
+    if (!editingPost) return;
     try {
       await editPost({
-        id,
-        post: { title: "Updated Title", body: "Updated body content" },
+        id: editingPost.id,
+        post: {
+          title: newPostTitle,
+          body: newPostBody,
+        },
       }).unwrap();
+
+      setAllPosts((prevPosts) =>
+        prevPosts.map((post) =>
+          post.id === editingPost.id
+            ? { ...post, title: newPostTitle, body: newPostBody }
+            : post
+        )
+      );
+
+      setNewPostTitle("");
+      setNewPostBody("");
+      setEditingPost(null);
     } catch (err) {
       console.error("Failed to edit post", err);
     }
@@ -87,35 +111,37 @@ function App() {
   return (
     <div>
       {isLoading && <p>Loading...</p>}
-      {error && <p>Error: {error}</p>}
+      {error && <p>{error}</p>}
 
-      <div>
-        <Container>
-          <TextField
-            name="title"
-            label="Title"
-            value={newPostTitle}
-            onChange={(e) => setNewPostTitle(e.target.value)}
-            variant="outlined"
-            fullWidth
-            margin="normal"
-          />
-          <TextField
-            name="body"
-            label="Body"
-            multiline
-            rows={4}
-            value={newPostBody}
-            onChange={(e) => setNewPostBody(e.target.value)}
-            variant="outlined"
-            fullWidth
-            margin="normal"
-          />
-          <Button onClick={handleAddPost} variant="contained" color="primary">
-            Add Post
-          </Button>
-        </Container>
-      </div>
+      <Container>
+        <TextField
+          name="title"
+          label="Title"
+          value={newPostTitle}
+          onChange={(e) => setNewPostTitle(e.target.value)}
+          variant="outlined"
+          fullWidth
+          margin="normal"
+        />
+        <TextField
+          name="body"
+          label="Body"
+          multiline
+          rows={4}
+          value={newPostBody}
+          onChange={(e) => setNewPostBody(e.target.value)}
+          variant="outlined"
+          fullWidth
+          margin="normal"
+        />
+        <Button
+          onClick={editingPost ? handleSaveChanges : handleAddPost}
+          variant="contained"
+          color="primary"
+        >
+          {editingPost ? "Save Changes" : "Add Post"}
+        </Button>
+      </Container>
 
       {allPosts.map((post, index) => (
         <Container sx={{ border: 1, mt: 2 }} key={post.id}>
